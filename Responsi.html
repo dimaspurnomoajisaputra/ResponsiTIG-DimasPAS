@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Pola Keruangan Agrikultur Kabupaten Hulu Sungai Utara</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+        }
+
+        
+        .title-banner {
+            background-color: #1b4d3e;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .title-banner h1 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        
+        #map {
+            width: 100%;
+            height: calc(100vh - 54px); 
+        }
+
+        
+        .legend {
+            background: white;
+            padding: 12px 15px;
+            line-height: 1.8;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 0.85rem;
+            color: #333;
+            max-width: 250px;
+        }
+
+        .legend strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            border-bottom: 2px solid #eaeaea;
+            padding-bottom: 4px;
+            color: #1b4d3e;
+        }
+
+        .legend-icon {
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="title-banner">
+        <h1>ANALISIS POLA KERUANGAN AGRIKULTUR DAN KEBUN KABUPATEN HULU SUNGAI UTARA</h1>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        
+        var map = L.map('map').setView([-2.4301, 115.1302], 11);
+
+        var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        // Simbologi
+        var layerBatas = L.geoJSON(null, {
+            style: { color: "#4A4A4A", weight: 2, dashArray: "5, 5", fillOpacity: 0 }
+        }).addTo(map);
+
+        var layerSawah = L.geoJSON(null, {
+            style: { fillColor: "#a3e4d7", fillOpacity: 0.7, color: "#16a085", weight: 0.5 }
+        }).addTo(map);
+
+        var layerKebun = L.geoJSON(null, {
+            style: { fillColor: "#27ae60", fillOpacity: 0.7, color: "#1e7b43", weight: 0.5 }
+        }).addTo(map);
+
+        var layerLadang = L.geoJSON(null, {
+            style: { fillColor: "#f39c12", fillOpacity: 0.6, color: "#d35400", weight: 0.5 }
+        }).addTo(map);
+
+        var layerPemukiman = L.geoJSON(null, {
+            style: { fillColor: "#e74c3c", fillOpacity: 0.5, color: "#c0392b", weight: 0.5 }
+        }).addTo(map);
+
+        var layerJalan = L.geoJSON(null, {
+            style: { color: "#e67e22", weight: 1.5 }
+        }).addTo(map);
+
+        var layerSungai = L.geoJSON(null, {
+            style: { color: "#2980b9", weight: 1.2 }
+        }).addTo(map);
+
+        var layerToponim = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                return L.circleMarker(latlng, {
+                    radius: 4, fillColor: "#ffffff", color: "#2c3e50", weight: 2, opacity: 1, fillOpacity: 1
+                });
+            },
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.NAMOBJ) {
+                    layer.bindTooltip(feature.properties.NAMOBJ, { 
+                        permanent: false, 
+                        direction: "top",
+                        offset: [0, -5]
+                    });
+                }
+            }
+        }).addTo(map);
+
+        function loadGeoJSON(url, layerGroup, primaryAttr) {
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error("Gagal memuat file " + url);
+                    return response.json();
+                })
+                .then(data => {
+                    layerGroup.addData(data);
+                    layerGroup.eachLayer(function (layer) {
+                        // Memeriksa ketersediaan atribut untuk isi Pop-up informasi objek peta
+                        var nama = layer.feature.properties[primaryAttr] || layer.feature.properties['REMARK'] || 'Objek Tanpa Nama';
+                        var tipe = layer.feature.properties['REMARK'] || 'Tidak Ada Keterangan';
+                        layer.bindPopup("<strong>" + nama + "</strong><br>Kategori: " + tipe);
+                    });
+                })
+                .catch(err => console.error("Kendala pemuatan layer:", err));
+        }
+
+        loadGeoJSON('Batas Administrasi.geojson', layerBatas, 'NAMOBJ');
+        loadGeoJSON('Sawah.geojson', layerSawah, 'REMARK');
+        loadGeoJSON('Kebun.geojson', layerKebun, 'REMARK');
+        loadGeoJSON('Ladang.geojson', layerLadang, 'REMARK');
+        loadGeoJSON('Pemukiman.geojson', layerPemukiman, 'NAMOBJ');
+        loadGeoJSON('Jalan.geojson', layerJalan, 'REMARK');
+        loadGeoJSON('Sungai.geojson', layerSungai, 'NAMOBJ');
+        loadGeoJSON('Toponim.geojson', layerToponim, 'NAMOBJ');
+
+        var baseMaps = {
+            "OpenStreetMap": osm,
+            "Satelit (Esri)": satellite
+        };
+
+        var overlayMaps = {
+            "Batas Administrasi": layerBatas,
+            "Lahan Sawah": layerSawah,
+            "Perkebunan / Kebun": layerKebun,
+            "Tegalan / Ladang": layerLadang,
+            "Pemukiman / Kegiatan": layerPemukiman,
+            "Jaringan Jalan": layerJalan,
+            "Jaringan Sungai / Irigasi": layerSungai,
+            "Nama Tempat (Toponim)": layerToponim
+        };
+
+        L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+
+        var legendControl = L.control({ position: 'bottomright' });
+
+        legendControl.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'info legend');
+            var items = [
+                '<strong>Legenda Tata Ruang</strong>',
+                '<i class="legend-icon" style="background: transparent; border: 2px dashed #4A4A4A; width: 18px; height: 10px;"></i> Batas Administrasi',
+                '<i class="legend-icon" style="background: #a3e4d7; border: 1px solid #16a085; width: 14px; height: 14px;"></i> Lahan Sawah',
+                '<i class="legend-icon" style="background: #27ae60; border: 1px solid #1e7b43; width: 14px; height: 14px;"></i> Perkebunan / Kebun',
+                '<i class="legend-icon" style="background: #f39c12; border: 1px solid #d35400; width: 14px; height: 14px;"></i> Tegalan / Ladang',
+                '<i class="legend-icon" style="background: #e74c3c; border: 1px solid #c0392b; width: 14px; height: 14px;"></i> Pemukiman',
+                '<i class="legend-icon" style="background: #e67e22; width: 18px; height: 3px;"></i> Jaringan Jalan',
+                '<i class="legend-icon" style="background: #2980b9; width: 18px; height: 3px;"></i> Jaringan Sungai',
+                '<i class="legend-icon" style="background: #ffffff; border: 2px solid #2c3e50; border-radius: 50%; width: 10px; height: 10px;"></i> Toponim (Tempat)'
+            ];
+            div.innerHTML = items.join('<br>');
+            return div;
+        };
+
+        legendControl.addTo(map);
+    </script>
+</body>
+
+</html>
